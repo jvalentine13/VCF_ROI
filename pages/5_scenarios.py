@@ -123,6 +123,17 @@ for platform in selected_platforms:
     roi = calculate_roi(current_tco, tco)
     fit = platform_fit_funcs[platform](parsed)
 
+    # Apply discovery fit adjustments if available
+    discovery = st.session_state.get('discovery', {})
+    fit_adjustments = discovery.get('fit_adjustments', {})
+    if platform in fit_adjustments:
+        raw_score = fit['fit_score'] + fit_adjustments[platform]
+        fit['fit_score'] = max(0, min(raw_score, 100))
+        if fit_adjustments[platform] > 0:
+            fit['fit_reasons'].append(f"Discovery responses added +{fit_adjustments[platform]} points")
+        elif fit_adjustments[platform] < 0:
+            fit['fit_reasons'].append(f"Discovery responses adjusted {fit_adjustments[platform]} points")
+
     scenario_results[platform] = {**tco, **roi, 'fit': fit}
     platform_fits[platform] = fit
 
