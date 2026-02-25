@@ -6,8 +6,7 @@ from calculator.platforms.nutanix import get_nutanix_tco
 from calculator.platforms.openshift import get_openshift_tco
 from calculator.platforms.azure_stack import get_azure_stack_tco
 from pricing.defaults import PLATFORMS, HARDWARE, FTE
-
-from pricing.defaults import PLATFORMS, HARDWARE, FTE
+from calculator.validation import validate_quote_inputs, validate_discovery
 
 def _get_pricing_override(platform, manual_overrides, quotes, parsed):
     """Resolve pricing — actual quote takes priority over manual override over defaults."""
@@ -119,6 +118,19 @@ with st.expander("Enter Actual Vendor Quotes (optional but recommended)", expand
             'expiry': str(azure_quote_expiry),
         },
     }
+
+# Validate quotes
+    quote_warnings = validate_quote_inputs(st.session_state.quotes, parsed)
+    for w in quote_warnings:
+        st.warning(f"⚠️ {w}")
+
+    # Validate discovery completeness
+    completion_pct, disc_warnings = validate_discovery(st.session_state.get('discovery', {}))
+    if disc_warnings:
+        for w in disc_warnings:
+            st.info(f"💡 {w}")
+    else:
+        st.success(f"✅ Discovery {completion_pct}% complete — recommendation confidence is high.")
 
 # Platform selection
 st.subheader("Select Platforms to Compare")

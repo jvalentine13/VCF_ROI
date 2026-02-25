@@ -2,6 +2,7 @@ import streamlit as st
 import plotly.graph_objects as go
 from calculator.tco import calculate_current_tco
 from pricing.defaults import HARDWARE, FTE
+from calculator.validation import validate_tco_inputs
 
 st.set_page_config(page_title="Current State TCO", layout="wide")
 st.title("💰 Current State TCO")
@@ -48,6 +49,14 @@ overrides = {
     'fte_count': fte_count,
     'years': years,
 }
+# Validate inputs
+tco_errors, tco_warnings = validate_tco_inputs(fte_count, fte_cost, avg_host_cost, years)
+for error in tco_errors:
+    st.error(f"❌ {error}")
+for warning in tco_warnings:
+    st.warning(f"⚠️ {warning}")
+if tco_errors:
+    st.stop()
 
 results = calculate_current_tco(parsed, overrides)
 st.session_state.current_tco = results

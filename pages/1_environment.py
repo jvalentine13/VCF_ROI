@@ -2,6 +2,7 @@ import streamlit as st
 import tempfile
 import os
 from parser.rvtools import parse_rvtools
+from calculator.validation import validate_parsed_data
 
 st.set_page_config(page_title="Environment Analysis", layout="wide")
 st.title("📊 Environment Analysis")
@@ -20,8 +21,16 @@ if uploaded_file:
     if "error" in parsed:
         st.error(f"Error parsing file: {parsed['error']}")
     else:
-        st.session_state.parsed_data = parsed
-        st.success("✅ RVTools file parsed successfully!")
+        errors, warnings = validate_parsed_data(parsed)
+        if errors:
+            for error in errors:
+                st.error(f"❌ {error}")
+        else:
+            st.session_state.parsed_data = parsed
+            st.success("✅ RVTools file parsed successfully!")
+            if warnings:
+                for warning in warnings:
+                    st.warning(f"⚠️ {warning}")
 
 if st.session_state.parsed_data:
     parsed = st.session_state.parsed_data
