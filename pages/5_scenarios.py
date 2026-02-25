@@ -7,7 +7,40 @@ from calculator.platforms.openshift import get_openshift_tco
 from calculator.platforms.azure_stack import get_azure_stack_tco
 from pricing.defaults import PLATFORMS, HARDWARE, FTE
 
+from pricing.defaults import PLATFORMS, HARDWARE, FTE
+
+def _get_pricing_override(platform, manual_overrides, quotes, parsed):
+    """Resolve pricing — actual quote takes priority over manual override over defaults."""
+    override = manual_overrides.get(platform, {}).copy()
+    quote = quotes.get(platform, {})
+    
+    if not quote or quote.get('value', 0) == 0:
+        return override
+
+    value = quote['value']
+    quote_type = quote.get('type', '')
+    hosts = parsed.get('total_hosts', 1)
+    cores = parsed.get('total_physical_cores', hosts * 20)
+    nodes = hosts
+
+    from pricing.defaults import PLATFORMS
+    model = PLATFORMS[platform]['model']
+
+    if 'Total Contract Value' in quote_type:
+        if model == 'per_core':
+            override['cost_per_core_per_year'] = round(value / max(cores, 1), 2)
+        elif model == 'per_node':
+            override['cost_per_node_per_year'] = round(value / max(nodes, 1), 2)
+    else:
+        if model == 'per_core':
+            override['cost_per_core_per_year'] = value
+        elif model == 'per_node':
+            override['cost_per_node_per_year'] = value
+
+    return override
+
 st.set_page_config(page_title="Scenario Builder", layout="wide")
+
 st.title("🔧 Scenario Builder")
 st.markdown("Select platforms to model and adjust assumptions to match real-world quotes.")
 
@@ -22,6 +55,70 @@ if not st.session_state.get('current_tco'):
 parsed = st.session_state.parsed_data
 current_tco = st.session_state.current_tco
 years = st.session_state.assumptions.get('years', 3)
+
+# ── Quote Input Section ───────────────────────────────────────────
+st.subheader("💼 Vendor Quote Inputs")
+st.info("💡 Have actual vendor quotes? Enter them here to override default list pricing and get the most accurate TCO. Leave blank to use industry defaults.")
+
+with st.expander("Enter Actual Vendor Quotes (optional but recommended)", expanded=True):
+    q1, q2 = st.columns(2)
+    with q1:
+        st.markdown("**VMware VCF**")
+        vcf_quote_type = st.selectbox("Quote Type", ["Per Core/Year", "Total Contract Value"], key="vcf_quote_type")
+        vcf_quote_value = st.number_input("VCF Quote Amount ($)", value=0, step=1000, key="vcf_quote_amount",
+            help="Enter 0 to use default pricing of $150/core/year")
+        vcf_quote_ref = st.text_input("Quote Reference #", key="vcf_quote_ref", placeholder="e.g. Q-2025-12345")
+        vcf_quote_expiry = st.date_input("Quote Expiry Date", key="vcf_quote_expiry")
+
+        st.markdown("**Nutanix**")
+        nutanix_quote_type = st.selectbox("Quote Type", ["Per Node/Year", "Total Contract Value"], key="nutanix_quote_type")
+        nutanix_quote_value = st.number_input("Nutanix Quote Amount ($)", value=0, step=1000, key="nutanix_quote_amount",
+            help="Enter 0 to use default pricing of $8,000/node/year")
+        nutanix_quote_ref = st.text_input("Quote Reference #", key="nutanix_quote_ref", placeholder="e.g. Q-2025-67890")
+        nutanix_quote_expiry = st.date_input("Quote Expiry Date", key="nutanix_quote_expiry")
+
+    with q2:
+        st.markdown("**Red Hat OpenShift**")
+        openshift_quote_type = st.selectbox("Quote Type", ["Per Core/Year", "Total Contract Value"], key="openshift_quote_type")
+        openshift_quote_value = st.number_input("OpenShift Quote Amount ($)", value=0, step=1000, key="openshift_quote_amount",
+            help="Enter 0 to use default pricing of $120/core/year")
+        openshift_quote_ref = st.text_input("Quote Reference #", key="openshift_quote_ref", placeholder="e.g. Q-2025-11111")
+        openshift_quote_expiry = st.date_input("Quote Expiry Date", key="openshift_quote_expiry")
+
+        st.markdown("**Azure Stack HCI**")
+        azure_quote_type = st.selectbox("Quote Type", ["Per Core/Year", "Total Contract Value"], key="azure_quote_type")
+        azure_quote_value = st.number_input("Azure Stack HCI Quote Amount ($)", value=0, step=1000, key="azure_quote_amount",
+            help="Enter 0 to use default pricing of $100/core/year")
+        azure_quote_ref = st.text_input("Quote Reference #", key="azure_quote_ref", placeholder="e.g. Q-2025-22222")
+        azure_quote_expiry = st.date_input("Quote Expiry Date", key="azure_quote_expiry")
+
+    # Store quote data in session state
+    st.session_state.quotes = {
+        'VMware VCF': {
+            'type': vcf_quote_type,
+            'value': vcf_quote_value,
+            'ref': vcf_quote_ref,
+            'expiry': str(vcf_quote_expiry),
+        },
+        'Nutanix': {
+            'type': nutanix_quote_type,
+            'value': nutanix_quote_value,
+            'ref': nutanix_quote_ref,
+            'expiry': str(nutanix_quote_expiry),
+        },
+        'Red Hat OpenShift': {
+            'type': openshift_quote_type,
+            'value': openshift_quote_value,
+            'ref': openshift_quote_ref,
+            'expiry': str(openshift_quote_expiry),
+        },
+        'Azure Stack HCI': {
+            'type': azure_quote_type,
+            'value': azure_quote_value,
+            'ref': azure_quote_ref,
+            'expiry': str(azure_quote_expiry),
+        },
+    }
 
 # Platform selection
 st.subheader("Select Platforms to Compare")
@@ -117,7 +214,9 @@ for platform in selected_platforms:
         'fte_reduction': fte_reduction / 100,
         'hardware_efficiency': hardware_efficiency / 100,
         'years': years,
-        'pricing': platform_overrides.get(platform, {}),
+        'pricing': _get_pricing_override(platform, platform_overrides,
+                                          st.session_state.get('quotes', {}),
+                                          parsed),
     }
     tco = calculate_platform_tco(parsed, platform, overrides)
     roi = calculate_roi(current_tco, tco)
