@@ -1,6 +1,7 @@
 import streamlit as st
 import plotly.graph_objects as go
 import plotly.express as px
+from calculator.roadmaps import get_roadmap
 
 st.set_page_config(page_title="Comparison & Recommendation", layout="wide")
 st.title("📊 Comparison & Recommendation")
@@ -202,6 +203,58 @@ if flags:
     st.markdown("**Unresolved environment risks if no action is taken:**")
     for flag in flags:
         st.warning(f"🔴 {flag}")
+st.divider()
+
+# ── Platform Roadmap ─────────────────────────────────────────────
+st.subheader("🗺️ Your Private Cloud Journey")
+
+roadmap_platform = st.selectbox(
+    "View roadmap for:",
+    selected_platforms,
+    index=selected_platforms.index(final_recommendation) if final_recommendation in selected_platforms else 0
+)
+
+roadmap = get_roadmap(roadmap_platform)
+if roadmap:
+    if roadmap_platform == final_recommendation:
+        st.success(f"⭐ Recommended platform — {roadmap['tagline']}")
+    else:
+        st.info(f"{roadmap['tagline']}")
+
+    st.divider()
+
+    for phase in roadmap['phases']:
+        with st.expander(
+            f"Phase {phase['number']} — {phase['name']}  |  {phase['timeline']}",
+            expanded=(phase['number'] == 1)
+        ):
+            st.markdown(f"**Objective:** {phase['objective']}")
+            col_act, col_exit = st.columns(2)
+            with col_act:
+                st.markdown("**Key Activities & Outputs**")
+                for activity in phase['activities']:
+                    st.caption(f"• {activity}")
+            with col_exit:
+                st.markdown("**Exit Criteria**")
+                for criterion in phase['exit_criteria']:
+                    st.caption(f"✅ {criterion}")
+
+    st.divider()
+
+    # Phase timeline visual
+    st.markdown("**Journey Timeline**")
+    phase_cols = st.columns(5)
+    colors = ['#1F4E79', '#2E75B6', '#4472C4', '#70AD47', '#ED7D31']
+    for i, phase in enumerate(roadmap['phases']):
+        with phase_cols[i]:
+            st.markdown(
+                f"""<div style='background-color:{colors[i]};padding:12px;border-radius:8px;text-align:center;color:white;'>
+                <strong>Phase {phase['number']}</strong><br/>
+                <small>{phase['name'].split('—')[0].strip()}</small><br/>
+                <small><em>{phase['timeline']}</em></small>
+                </div>""",
+                unsafe_allow_html=True
+            )
 
 st.divider()
-st.info("👈 Continue to **Export** in the sidebar to generate your customer deliverables.")
+st.info("👈 Continue to **Export & Proposal** in the sidebar to generate your customer deliverables.")
