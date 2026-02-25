@@ -2,20 +2,41 @@ import streamlit as st
 import tempfile
 import os
 from parser.rvtools import parse_rvtools
+from parser.liveoptics import parse_liveoptics
 from calculator.validation import validate_parsed_data
 
 st.set_page_config(page_title="Environment Analysis", layout="wide")
 st.title("📊 Environment Analysis")
 st.markdown("Upload your RVTools export to analyze your current infrastructure.")
 
-uploaded_file = st.file_uploader("Upload RVTools Excel Export (.xlsx)", type=["xlsx"])
+source_type = st.radio(
+    "Select Data Source",
+    ["RVTools", "LiveOptics"],
+    horizontal=True
+)
+
+if source_type == "RVTools":
+    uploaded_file = st.file_uploader(
+        "Upload RVTools Excel Export (.xlsx)",
+        type=["xlsx"],
+        help="Export from RVTools — typically named RVTools_export_YYYY-MM-DD.xlsx"
+    )
+else:
+    uploaded_file = st.file_uploader(
+        "Upload LiveOptics Excel Export (.xlsx)",
+        type=["xlsx"],
+        help="Export from LiveOptics — download from the LiveOptics portal after collection"
+    )
 
 if uploaded_file:
     with st.spinner("Parsing RVTools data..."):
         with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
             tmp.write(uploaded_file.read())
             tmp_path = tmp.name
-        parsed = parse_rvtools(tmp_path)
+            if source_type == "RVTools":
+                parsed = parse_rvtools(tmp_path)
+            else:
+                parsed = parse_liveoptics(tmp_path)
         os.unlink(tmp_path)
 
     if "error" in parsed:
