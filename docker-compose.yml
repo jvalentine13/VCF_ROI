@@ -1,0 +1,12 @@
+services:
+  vcf-roi:
+    build: .
+    container_name: vcf-roi-calculator
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./sessions:/app/sessions
+      - ./assets:/app/assets
+    environment:
+      - STREAMLIT_SERVER_MAX_UPLOAD_SIZE=200
+    restart: unless-stopped
