@@ -29,14 +29,15 @@ else:
     )
 
 if uploaded_file:
-    with st.spinner("Parsing RVTools data..."):
+    with st.spinner("Parsing data..."):
+        import tempfile, os
         with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
-            tmp.write(uploaded_file.read())
+            tmp.write(uploaded_file.getbuffer())
             tmp_path = tmp.name
-            if source_type == "RVTools":
-                parsed = parse_rvtools(tmp_path)
-            else:
-                parsed = parse_liveoptics(tmp_path)
+        if source_type == "RVTools":
+            parsed = parse_rvtools(tmp_path)
+        else:
+            parsed = parse_liveoptics(tmp_path)
         os.unlink(tmp_path)
 
     if "error" in parsed:
@@ -53,7 +54,7 @@ if uploaded_file:
                 for warning in warnings:
                     st.warning(f"⚠️ {warning}")
 
-if st.session_state.parsed_data:
+if st.session_state.get('parsed_data'):
     parsed = st.session_state.parsed_data
     health = parsed.get('health', {})
 

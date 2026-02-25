@@ -4,7 +4,7 @@ import pandas as pd
 def parse_liveoptics(filepath):
     """Parse a LiveOptics xlsx export and extract key infrastructure data."""
     try:
-        xl = pd.ExcelFile(filepath)
+        xl = pd.ExcelFile(filepath, engine='openpyxl')
         sheets = xl.sheet_names
         sheets_lower = {s.lower(): s for s in sheets}
         data = {}

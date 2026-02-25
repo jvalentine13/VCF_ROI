@@ -3,7 +3,7 @@ import pandas as pd
 def parse_rvtools(filepath):
     """Parse RVTools xlsx and extract infrastructure data with health scoring."""
     try:
-        xl = pd.ExcelFile(filepath)
+        xl = pd.ExcelFile(filepath, engine="openpyxl")
         sheets = xl.sheet_names
         data = {}
 
